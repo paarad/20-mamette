@@ -12,6 +12,9 @@ export default function NewProjectPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [quickText, setQuickText] = useState('');
+  const [quickLoading, setQuickLoading] = useState(false);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
@@ -42,6 +45,25 @@ export default function NewProjectPage() {
     }
   }
 
+  async function handleQuickGenerate() {
+    setQuickLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/quick-generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: quickText }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to generate');
+      router.push(`/project/${json.projectId}`);
+    } catch (e: any) {
+      setError(e.message || 'Something went wrong');
+    } finally {
+      setQuickLoading(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-neutral-50 to-neutral-100">
       <div className="container mx-auto px-4 py-8">
@@ -49,6 +71,18 @@ export default function NewProjectPage() {
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-neutral-800 mb-2">Tell Mamette About Your Book</h1>
             <p className="text-neutral-600">Share your vision and let's create something beautiful together</p>
+          </div>
+
+          {/* Quick generate from pasted text */}
+          <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-6 mb-8">
+            <h2 className="text-lg font-semibold text-neutral-800 mb-3">Paste text to generate</h2>
+            <p className="text-sm text-neutral-600 mb-3">Paste your poem or story. Mamette will infer a title and vibe, then create covers.</p>
+            <textarea value={quickText} onChange={(e) => setQuickText(e.target.value)} className="w-full px-4 py-3 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-neutral-400 focus:border-transparent" rows={5} placeholder="Paste your poetry or prose here..." />
+            <div className="mt-3">
+              <button onClick={handleQuickGenerate} disabled={quickLoading || quickText.trim().length < 10} className="px-6 py-3 bg-neutral-900 text-white rounded-lg hover:bg-neutral-800 transition-colors disabled:opacity-60">
+                {quickLoading ? 'Generating…' : 'Generate from text'}
+              </button>
+            </div>
           </div>
 
           <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-neutral-200 p-8">
