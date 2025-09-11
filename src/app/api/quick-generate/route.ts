@@ -3,6 +3,7 @@ import OpenAI from 'openai';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { DEFAULT_USER_ID } from '@/lib/config';
 import { detectLanguage, languageStyle } from '@/lib/lang';
+import { imageHasText } from '@/lib/ocr';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -15,7 +16,6 @@ export async function POST(request: NextRequest) {
 
     const inferred = inferFromText(text);
 
-    // Create project first
     const { data: project, error: insertErr } = await supabaseAdmin
       .from('mamette_projects')
       .insert({
@@ -40,25 +40,39 @@ export async function POST(request: NextRequest) {
     const lang = detectLanguage(text);
     const prompt = buildPrompt({ title: inferred.title, genre: 'poetry', vibe: inferred.vibe, lang, sourceText: text });
 
-    // Generate images (4)
-    const imagePromises = Array.from({ length: 4 }, () =>
-      openai.images.generate({
-        model: 'dall-e-3',
-        prompt,
-        n: 1,
-        size: '1024x1792',
-        quality: 'hd',
-        style: 'natural',
-      })
-    );
+    const desired = 4;
+    const maxAttempts = 20;
+    const cleanDataUrls: string[] = [];
+    let attempts = 0;
 
-    const results = await Promise.allSettled(imagePromises);
-    const urls = results
-      .filter((r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled')
-      .map((r) => r.value.data?.[0]?.url)
-      .filter(Boolean);
+    while (cleanDataUrls.length < desired && attempts < maxAttempts) {
+      attempts += 1;
+      try {
+        const gen = await openai.images.generate({
+          model: 'dall-e-3',
+          prompt,
+          n: 1,
+          size: '1024x1792',
+          quality: 'hd',
+          style: 'natural',
+          response_format: 'b64_json',
+        } as any);
 
-    const newEntries = urls.map((url: string) => ({
+        const b64 = gen?.data?.[0]?.b64_json as string | undefined;
+        if (!b64) continue;
+        const dataUrl = `data:image/png;base64,${b64}`;
+        const hasText = await imageHasText(dataUrl);
+        if (!hasText) cleanDataUrls.push(dataUrl);
+      } catch (e) {
+        // continue
+      }
+    }
+
+    if (cleanDataUrls.length === 0) {
+      return NextResponse.json({ error: 'No text-free images generated' }, { status: 500 });
+    }
+
+    const newEntries = cleanDataUrls.map((url: string) => ({
       url,
       provider: 'dalle',
       status: 'completed',
@@ -74,7 +88,7 @@ export async function POST(request: NextRequest) {
       console.error('Failed to update project generations:', updateErr);
     }
 
-    return NextResponse.json({ success: true, projectId: project.id, images: urls });
+    return NextResponse.json({ success: true, projectId: project.id, images: cleanDataUrls });
   } catch (e) {
     console.error('quick-generate error:', e);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -90,11 +104,9 @@ function inferFromText(text: string) {
   const first = lines[0] || 'Untitled';
   const title = first.length > 80 ? first.slice(0, 77) + '…' : first;
 
-  // If the last line looks like an author (starts with by ...), use it
   const last = lines[lines.length - 1]?.toLowerCase() || '';
   const author = last.startsWith('by ') ? lines[lines.length - 1].slice(3).trim() : 'Unknown';
 
-  // Use the whole text as vibe (truncate to reasonable length)
   const vibe = text.length > 800 ? text.slice(0, 800) + '…' : text;
 
   return { title, author, vibe };
@@ -122,10 +134,8 @@ function buildPrompt({
   let prompt = `A ${genre} cover artwork (image only) for "${title}", ${genreStyles['poetry']}`;
   if (vibe) prompt += `, incorporating themes of ${vibe}`;
 
-  // Enforce language and no lettering
   prompt += `, ${languageStyle(lang)}`;
 
-  // Use ONLY provided text
   if (sourceText && sourceText.trim().length > 0) {
     const cleaned = sourceText.replace(/\s+/g, ' ').trim();
     const text = cleaned.length > 900 ? cleaned.slice(0, 899) + '…' : cleaned;

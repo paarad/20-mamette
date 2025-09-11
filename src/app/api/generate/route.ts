@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { detectLanguage, languageStyle } from '@/lib/lang';
+import { imageHasText } from '@/lib/ocr';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -30,28 +31,40 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
 
-    const imagePromises = Array.from({ length: 4 }, () =>
-      openai.images.generate({
-        model: 'dall-e-3',
-        prompt: dynamicPrompt,
-        n: 1,
-        size: '1024x1792',
-        quality: 'hd',
-        style: 'natural',
-      })
-    );
+    // Generate up to 4 clean images (no text), retrying as needed with a cap
+    const desired = 4;
+    const maxAttempts = 20;
+    const cleanDataUrls: string[] = [];
+    let attempts = 0;
 
-    const results = await Promise.allSettled(imagePromises);
-    const urls = results
-      .filter((r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled')
-      .map((r) => r.value.data?.[0]?.url)
-      .filter(Boolean);
+    while (cleanDataUrls.length < desired && attempts < maxAttempts) {
+      attempts += 1;
+      try {
+        const gen = await openai.images.generate({
+          model: 'dall-e-3',
+          prompt: dynamicPrompt,
+          n: 1,
+          size: '1024x1792',
+          quality: 'hd',
+          style: 'natural',
+          response_format: 'b64_json',
+        } as any);
 
-    if (urls.length === 0) {
-      return NextResponse.json({ error: 'No images generated' }, { status: 500 });
+        const b64 = gen?.data?.[0]?.b64_json as string | undefined;
+        if (!b64) continue;
+        const dataUrl = `data:image/png;base64,${b64}`;
+        const hasText = await imageHasText(dataUrl);
+        if (!hasText) cleanDataUrls.push(dataUrl);
+      } catch (e) {
+        // ignore and continue attempts
+      }
     }
 
-    const newEntries = urls.map((url: string) => ({
+    if (cleanDataUrls.length === 0) {
+      return NextResponse.json({ error: 'No text-free images generated' }, { status: 500 });
+    }
+
+    const newEntries = cleanDataUrls.map((url: string) => ({
       url,
       provider: 'dalle',
       status: 'completed',
@@ -72,7 +85,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Update failed' }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, projectId, images: urls });
+    return NextResponse.json({ success: true, projectId, images: cleanDataUrls });
   } catch (error) {
     console.error('Generation error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
