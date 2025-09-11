@@ -7,9 +7,29 @@ export async function replicateTextToImage(params: {
   guidanceScale?: number;
 }): Promise<string[]> {
   const token = process.env.REPLICATE_API_TOKEN;
-  const version = process.env.REPLICATE_VERSION; // e.g. a specific version of the chosen model
-  if (!token || !version) {
-    throw new Error('Missing REPLICATE_API_TOKEN or REPLICATE_VERSION');
+  let version = process.env.REPLICATE_VERSION;
+  const model = process.env.REPLICATE_MODEL; // e.g. owner/model slug
+  if (!token) {
+    throw new Error('Missing REPLICATE_API_TOKEN');
+  }
+
+  // Auto-resolve latest version from model slug when no explicit version is provided
+  if (!version) {
+    if (!model) {
+      throw new Error('Missing REPLICATE_VERSION and REPLICATE_MODEL');
+    }
+    const modelRes = await fetch(`https://api.replicate.com/v1/models/${model}`, {
+      headers: { 'Authorization': `Token ${token}` },
+    });
+    if (!modelRes.ok) {
+      const txt = await modelRes.text();
+      throw new Error(`Replicate model lookup failed: ${txt}`);
+    }
+    const modelJson = await modelRes.json();
+    version = modelJson?.latest_version?.id;
+    if (!version) {
+      throw new Error('Replicate: could not determine latest version for the provided model');
+    }
   }
 
   const input = {
