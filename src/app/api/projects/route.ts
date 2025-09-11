@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { DEFAULT_USER_ID } from '@/lib/config';
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,7 +16,7 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabaseAdmin
       .from('mamette_projects')
       .insert({
-        user_id: userId || null,
+        user_id: userId || DEFAULT_USER_ID,
         title,
         author,
         genre,
@@ -46,7 +47,7 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
+    const userId = searchParams.get('userId') || DEFAULT_USER_ID;
 
     let query = supabaseAdmin
       .from('mamette_projects')

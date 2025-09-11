@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { DEFAULT_USER_ID } from '@/lib/config';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -17,7 +18,7 @@ export async function POST(request: NextRequest) {
     const { data: project, error: insertErr } = await supabaseAdmin
       .from('mamette_projects')
       .insert({
-        user_id: userId || null,
+        user_id: userId || DEFAULT_USER_ID,
         title: inferred.title,
         author: inferred.author,
         genre: 'poetry',
