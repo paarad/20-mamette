@@ -38,18 +38,21 @@ export async function POST(request: NextRequest) {
 
     const lang = detectLanguage(text);
     const prompt = buildPrompt({ title: inferred.title, genre: 'poetry', vibe: inferred.vibe, lang, sourceText: text });
+    const abstractFallbackPrompt = `${prompt}, abstract minimal composition, non-literal motifs, organic shapes and textures, landscape or scenery without words, silhouettes only, avoid any shapes resembling letters or numbers, no glyphs, no scripts (Latin, Cyrillic, Arabic, Chinese, Japanese, Korean), no calligraphy, no runes, no symbols, no text-like marks`;
 
     const desired = 4;
-    const maxAttempts = 20;
+    const maxAttempts = 40;
+    const abstractAfter = 12;
     const cleanDataUrls: string[] = [];
     let attempts = 0;
 
     while (cleanDataUrls.length < desired && attempts < maxAttempts) {
       attempts += 1;
       try {
+        const promptToUse = attempts > abstractAfter ? abstractFallbackPrompt : prompt;
         const gen = await openai.images.generate({
           model: 'dall-e-3',
-          prompt,
+          prompt: promptToUse,
           n: 1,
           size: '1024x1792',
           quality: 'hd',
@@ -134,7 +137,7 @@ function buildPrompt({
     prompt += `, use ONLY the following text as thematic reference, do not invent motifs beyond it, do not display text: """${text}"""`;
   }
 
-  prompt += `, flat 2D artwork, no book mockups, no physical book, no 3D, no bevel, no emboss, no drop shadows, no reflections, no perspective product shots, no hands, no devices, no borders, no frames, no logos, no UI, no text, no typography, no letters, no characters, no signage, no captions`;
+  prompt += `, flat 2D artwork, no book mockups, no physical book, no 3D, no bevel, no emboss, no drop shadows, no reflections, no perspective product shots, no hands, no devices, no borders, no frames, no logos, no UI, no text, no typography, no letters, no numbers, no glyphs, no scripts (Latin, Cyrillic, Arabic, Chinese, Japanese, Korean), no calligraphy, no runes, no symbols, no signage, no captions, avoid any text-like marks`;
   prompt += `, simple poster-style composition, single-image output, aspect ratio 2:3`;
   return prompt;
 } 
