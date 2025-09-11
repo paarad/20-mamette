@@ -49,6 +49,7 @@ export async function POST(request: NextRequest) {
       attempts += 1;
       try {
         const promptToUse = attempts > abstractAfter ? abstractFallbackPrompt : prompt;
+        console.log(`[DEBUG] Attempt ${attempts}: Using prompt: ${promptToUse.slice(0, 200)}...`);
         const outputs = await replicateTextToImage({
           prompt: promptToUse,
           negativePrompt: 'text, letters, words, characters, typography, captions, logos, watermarks, glyphs, scripts, symbols, UI',
@@ -57,16 +58,25 @@ export async function POST(request: NextRequest) {
           numInferenceSteps: 24,
           guidanceScale: 3.0,
         });
+        console.log(`[DEBUG] Replicate outputs:`, outputs);
         const url = outputs?.[0];
-        if (!url) continue;
+        if (!url) {
+          console.log(`[DEBUG] No URL in outputs for attempt ${attempts}`);
+          continue;
+        }
+        console.log(`[DEBUG] Got URL: ${url.slice(0, 100)}...`);
         const dataUrl = await fetchImageAsDataUrl(url);
         const hasText = await imageHasText(dataUrl);
         allDataUrls.push(url);
         if (!hasText) cleanDataUrls.push(url);
-      } catch (_e) {
+        console.log(`[DEBUG] OCR result: hasText=${hasText}`);
+      } catch (e) {
+        console.error(`[DEBUG] Attempt ${attempts} failed:`, e);
         // continue attempts
       }
     }
+
+    console.log(`[DEBUG] Final: clean=${cleanDataUrls.length}, all=${allDataUrls.length}`);
 
     const imagesToSave = cleanDataUrls.length > 0 ? cleanDataUrls : allDataUrls.slice(0, desired);
 
@@ -87,7 +97,8 @@ export async function POST(request: NextRequest) {
       .eq('id', project.id);
 
     return NextResponse.json({ success: true, projectId: project.id, images: imagesToSave, filtered: cleanDataUrls.length > 0 });
-  } catch (_e) {
+  } catch (e) {
+    console.error('[DEBUG] Top-level error:', e);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
