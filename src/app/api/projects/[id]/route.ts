@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await context.params;
     const { data, error } = await supabaseAdmin
       .from('mamette_projects')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .single();
 
     if (error || !data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -16,15 +17,16 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   }
 }
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await context.params;
     const body = await request.json();
     const { favorite_asset_url } = body;
 
     const { data, error } = await supabaseAdmin
       .from('mamette_projects')
       .update({ favorite_asset_url })
-      .eq('id', params.id)
+      .eq('id', id)
       .select('*')
       .single();
 
