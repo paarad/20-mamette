@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { DEFAULT_USER_ID } from '@/lib/config';
 import { detectLanguage, languageStyle } from '@/lib/lang';
 import { imageHasText } from '@/lib/ocr';
 import { replicateTextToImage, fetchImageAsDataUrl } from '@/lib/replicate';
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function POST(request: NextRequest) {
   try {
@@ -41,11 +38,9 @@ export async function POST(request: NextRequest) {
     const prompt = buildPrompt({ title: inferred.title, genre: 'poetry', vibe: inferred.vibe, lang, sourceText: text });
     const abstractFallbackPrompt = `${prompt}, abstract minimal composition, non-literal motifs, organic shapes and textures, landscape or scenery without words, silhouettes only, avoid any shapes resembling letters or numbers, no glyphs, no scripts (Latin, Cyrillic, Arabic, Chinese, Japanese, Korean), no calligraphy, no runes, no symbols, no text-like marks`;
 
-    const provider = process.env.MAMETTE_IMAGE_PROVIDER || 'dalle';
-
     const desired = 2;
-    const maxAttempts = provider === 'replicate' ? 16 : 24;
-    const abstractAfter = provider === 'replicate' ? 6 : 8;
+    const maxAttempts = 16;
+    const abstractAfter = 6;
     const cleanDataUrls: string[] = [];
     const allDataUrls: string[] = [];
     let attempts = 0;
@@ -54,39 +49,23 @@ export async function POST(request: NextRequest) {
       attempts += 1;
       try {
         const promptToUse = attempts > abstractAfter ? abstractFallbackPrompt : prompt;
-        if (provider === 'replicate') {
-          const outputs = await replicateTextToImage({
-            prompt: promptToUse,
-            negativePrompt: 'text, letters, words, characters, typography, captions, logos, watermarks, glyphs, scripts, symbols, UI',
-            width: 1024,
-            height: 1792,
-            numInferenceSteps: 24,
-            guidanceScale: 3.0,
-          });
-          const url = outputs?.[0];
-          if (!url) continue;
-          const dataUrl = await fetchImageAsDataUrl(url);
-          const hasText = await imageHasText(dataUrl);
-          allDataUrls.push(url);
-          if (!hasText) cleanDataUrls.push(url);
-        } else {
-          const gen = await openai.images.generate({
-            model: 'dall-e-3',
-            prompt: promptToUse,
-            n: 1,
-            size: '1024x1792',
-            quality: 'hd',
-            style: 'natural',
-            response_format: 'b64_json',
-          } as any);
-          const b64 = gen?.data?.[0]?.b64_json as string | undefined;
-          if (!b64) continue;
-          const dataUrl = `data:image/png;base64,${b64}`;
-          const hasText = await imageHasText(dataUrl);
-          allDataUrls.push(dataUrl);
-          if (!hasText) cleanDataUrls.push(dataUrl);
-        }
-      } catch (_e) {}
+        const outputs = await replicateTextToImage({
+          prompt: promptToUse,
+          negativePrompt: 'text, letters, words, characters, typography, captions, logos, watermarks, glyphs, scripts, symbols, UI',
+          width: 1024,
+          height: 1792,
+          numInferenceSteps: 24,
+          guidanceScale: 3.0,
+        });
+        const url = outputs?.[0];
+        if (!url) continue;
+        const dataUrl = await fetchImageAsDataUrl(url);
+        const hasText = await imageHasText(dataUrl);
+        allDataUrls.push(url);
+        if (!hasText) cleanDataUrls.push(url);
+      } catch (_e) {
+        // continue attempts
+      }
     }
 
     const imagesToSave = cleanDataUrls.length > 0 ? cleanDataUrls : allDataUrls.slice(0, desired);
@@ -97,7 +76,7 @@ export async function POST(request: NextRequest) {
 
     const newEntries = imagesToSave.map((url: string) => ({
       url,
-      provider: provider === 'replicate' ? 'replicate' : 'dalle',
+      provider: 'replicate',
       status: 'completed',
       created_at: new Date().toISOString(),
     }));

@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { detectLanguage, languageStyle } from '@/lib/lang';
 import { imageHasText } from '@/lib/ocr';
 import { replicateTextToImage, fetchImageAsDataUrl } from '@/lib/replicate';
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function POST(request: NextRequest) {
   try {
@@ -32,11 +29,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
 
-    const provider = process.env.MAMETTE_IMAGE_PROVIDER || 'dalle';
-
     const desired = 4;
-    const maxAttempts = provider === 'replicate' ? 24 : 40;
-    const abstractAfter = provider === 'replicate' ? 8 : 12;
+    const maxAttempts = 24;
+    const abstractAfter = 8;
     const cleanDataUrls: string[] = [];
     const allDataUrls: string[] = [];
     let attempts = 0;
@@ -45,39 +40,23 @@ export async function POST(request: NextRequest) {
       attempts += 1;
       try {
         const promptToUse = attempts > abstractAfter ? abstractFallbackPrompt : dynamicPrompt;
-        if (provider === 'replicate') {
-          const outputs = await replicateTextToImage({
-            prompt: promptToUse,
-            negativePrompt: 'text, letters, words, characters, typography, captions, logos, watermarks, glyphs, scripts, symbols, UI',
-            width: 1024,
-            height: 1792,
-            numInferenceSteps: 26,
-            guidanceScale: 3.0,
-          });
-          const url = outputs?.[0];
-          if (!url) continue;
-          const dataUrl = await fetchImageAsDataUrl(url);
-          const hasText = await imageHasText(dataUrl);
-          allDataUrls.push(url);
-          if (!hasText) cleanDataUrls.push(url);
-        } else {
-          const gen = await openai.images.generate({
-            model: 'dall-e-3',
-            prompt: promptToUse,
-            n: 1,
-            size: '1024x1792',
-            quality: 'hd',
-            style: 'natural',
-            response_format: 'b64_json',
-          } as any);
-          const b64 = gen?.data?.[0]?.b64_json as string | undefined;
-          if (!b64) continue;
-          const dataUrl = `data:image/png;base64,${b64}`;
-          const hasText = await imageHasText(dataUrl);
-          allDataUrls.push(dataUrl);
-          if (!hasText) cleanDataUrls.push(dataUrl);
-        }
-      } catch (_e) {}
+        const outputs = await replicateTextToImage({
+          prompt: promptToUse,
+          negativePrompt: 'text, letters, words, characters, typography, captions, logos, watermarks, glyphs, scripts, symbols, UI',
+          width: 1024,
+          height: 1792,
+          numInferenceSteps: 26,
+          guidanceScale: 3.0,
+        });
+        const url = outputs?.[0];
+        if (!url) continue;
+        const dataUrl = await fetchImageAsDataUrl(url);
+        const hasText = await imageHasText(dataUrl);
+        allDataUrls.push(url);
+        if (!hasText) cleanDataUrls.push(url);
+      } catch (_e) {
+        // continue attempts
+      }
     }
 
     const imagesToSave = cleanDataUrls.length > 0 ? cleanDataUrls : allDataUrls.slice(0, desired);
@@ -88,7 +67,7 @@ export async function POST(request: NextRequest) {
 
     const newEntries = imagesToSave.map((url: string) => ({
       url,
-      provider: provider === 'replicate' ? 'replicate' : 'dalle',
+      provider: 'replicate',
       status: 'completed',
       created_at: new Date().toISOString(),
     }));
