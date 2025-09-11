@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { DEFAULT_USER_ID } from '@/lib/config';
+import { detectLanguage, languageStyle } from '@/lib/lang';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -36,8 +37,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create project' }, { status: 500 });
     }
 
-    // Build prompt from text
-    const prompt = buildPrompt(inferred.title, 'poetry', inferred.vibe, undefined);
+    const lang = detectLanguage(text);
+    const prompt = buildPrompt(inferred.title, 'poetry', inferred.vibe, undefined, lang);
 
     // Generate images (4)
     const imagePromises = Array.from({ length: 4 }, () =>
@@ -99,7 +100,7 @@ function inferFromText(text: string) {
   return { title, author, vibe };
 }
 
-function buildPrompt(title: string, genre: string, vibe?: string, color?: string): string {
+function buildPrompt(title: string, genre: string, vibe?: string, color?: string, lang: 'fr' | 'en' = 'en'): string {
   const genreStyles = {
     poetry: 'artistic elegant design, creative symbolism, lyrical atmosphere, minimalistic composition',
   } as const;
@@ -118,6 +119,10 @@ function buildPrompt(title: string, genre: string, vibe?: string, color?: string
   let prompt = `A ${genre} book cover concept for "${title}", ${genreStyles['poetry']}`;
   if (color && colorMods[color as keyof typeof colorMods]) prompt += `, ${colorMods[color as keyof typeof colorMods]}`;
   if (vibe) prompt += `, inspired by the following text: ${truncate(vibe, 300)}`;
+  // Language style and strict no lettering
+  prompt += `, ${languageStyle(lang)}`;
+  // Enforce flat artwork
+  prompt += `, flat 2D artwork, no book mockups, no 3D render, no drop shadows, no perspective book objects, no staged product shots`;
   prompt += `, cinematic composition, professional book cover design, clean space for typography, no text, no watermark, no frame, aspect ratio 2:3`;
   return prompt;
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { detectLanguage, languageStyle } from '@/lib/lang';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -15,7 +16,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const dynamicPrompt = buildPrompt(title, genre, vibe, color);
+    // Detect language from title+vibe+author
+    const lang = detectLanguage(`${title}\n${author || ''}\n${vibe || ''}`);
+    const dynamicPrompt = buildPrompt(title, genre, vibe, color, lang);
 
     // Fetch existing generations
     const { data: project, error: fetchErr } = await supabaseAdmin
@@ -83,7 +86,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-function buildPrompt(title: string, genre: string, vibe?: string, color?: string): string {
+function buildPrompt(title: string, genre: string, vibe?: string, color?: string, lang: 'fr' | 'en' = 'en'): string {
   const genreStyles = {
     fiction: 'literary fiction, clean modern design, thoughtful composition',
     mystery: 'suspenseful thriller, dark atmospheric lighting, noir elements',
@@ -109,6 +112,10 @@ function buildPrompt(title: string, genre: string, vibe?: string, color?: string
   let prompt = `A ${genre} book cover concept for "${title}", ${genreStyles[genre as keyof typeof genreStyles] || 'professional design'}`;
   if (color && colorMods[color as keyof typeof colorMods]) prompt += `, ${colorMods[color as keyof typeof colorMods]}`;
   if (vibe) prompt += `, incorporating themes of ${vibe}`;
+  // Language style and strict no-text directive
+  prompt += `, ${languageStyle(lang)}`;
+  // Enforce flat 2D artwork (no mockups, no 3D, no shadows)
+  prompt += `, flat 2D artwork, no book mockups, no 3D render, no drop shadows, no perspective book objects, no staged product shots`;
   prompt += `, cinematic composition, professional book cover design, clean space for typography, no text, no watermark, no frame, aspect ratio 2:3`;
   return prompt;
 } 
