@@ -134,29 +134,23 @@ export default function ProjectPage() {
             )}
           </div>
 
+          {false && (
           <div className="lg:col-span-1">
             <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-6 sticky top-8">
               <h3 className="text-lg font-semibold text-neutral-800 mb-6">Text Overlay</h3>
-
               <div className="space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-neutral-700 mb-2">Title</label>
-                  <input type="text" defaultValue={project.title} className="w-full px-3 py-2 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-neutral-400 focus:border-transparent" />
+                  <input type="text" defaultValue={project?.title || ''} className="w-full px-3 py-2 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-neutral-400 focus:border-transparent" />
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-neutral-700 mb-2">Author</label>
-                  <input type="text" defaultValue={project.author} className="w-full px-3 py-2 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-neutral-400 focus:border-transparent" />
+                  <input type="text" defaultValue={project?.author || ''} className="w-full px-3 py-2 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-neutral-400 focus:border-transparent" />
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-neutral-700 mb-2">Typography Style</label>
                   <div className="space-y-2">
-                    {[
-                      { name: 'Serif Classic', desc: 'Literary & Historical' },
-                      { name: 'Bold Sans', desc: 'Thriller & Non-fiction' },
-                      { name: 'Elegant Script', desc: 'Romance & Poetry' },
-                    ].map((style) => (
+                    {[{ name: 'Serif Classic', desc: 'Literary & Historical' }, { name: 'Bold Sans', desc: 'Thriller & Non-fiction' }, { name: 'Elegant Script', desc: 'Romance & Poetry' }].map((style) => (
                       <label key={style.name} className="flex items-center p-3 border border-neutral-200 rounded-lg hover:bg-neutral-50 cursor-pointer">
                         <input type="radio" name="typography" className="mr-3" />
                         <div>
@@ -167,7 +161,6 @@ export default function ProjectPage() {
                     ))}
                   </div>
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-neutral-700 mb-2">Text Color</label>
                   <div className="flex gap-2">
@@ -176,11 +169,11 @@ export default function ProjectPage() {
                     ))}
                   </div>
                 </div>
-
                 <button className="w-full bg-neutral-800 text-white py-3 rounded-lg hover:bg-neutral-700 transition-colors">Apply Text Overlay</button>
               </div>
             </div>
           </div>
+          )}
         </div>
       </div>
     </div>

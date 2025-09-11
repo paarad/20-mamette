@@ -130,7 +130,7 @@ function buildPrompt({
   }
 
   // Hard constraints to avoid mockups/objects/typography
-  prompt += `, flat 2D artwork, no book mockups, no physical book, no 3D, no bevel, no emboss, no drop shadows, no reflections, no perspective product shots, no hands, no devices, no borders, no frames, no logos, no UI, no text`;
+  prompt += `, flat 2D artwork, no book mockups, no physical book, no 3D, no bevel, no emboss, no drop shadows, no reflections, no perspective product shots, no hands, no devices, no borders, no frames, no logos, no UI, no text, no typography, no letters, no characters, no signage, no captions`;
 
   // Keep composition simple and image-only
   prompt += `, simple poster-style composition, single-image output`;
