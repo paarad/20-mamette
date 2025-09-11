@@ -148,11 +148,7 @@ export default function HomePage() {
             </div>
             <span className="text-neutral-600">© 2024 Mamette</span>
           </div>
-          <div className="flex gap-6 text-sm text-neutral-600">
-            <a href="#" className="hover:text-neutral-800 transition-colors">Privacy</a>
-            <a href="#" className="hover:text-neutral-800 transition-colors">Terms</a>
-            <a href="#" className="hover:text-neutral-800 transition-colors">Support</a>
-          </div>
+          {/* Removed auxiliary links */}
         </div>
       </footer>
     </div>
