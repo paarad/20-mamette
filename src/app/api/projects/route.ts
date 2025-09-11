@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,18 +12,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create new project
-    const { data: project, error } = await supabase
-      .from('projects')
+    const { data, error } = await supabaseAdmin
+      .from('mamette_projects')
       .insert({
-        user_id: userId || '00000000-0000-0000-0000-000000000000', // Temporary for MVP
+        user_id: userId || null,
         title,
         author,
         genre,
         vibe,
-        color
+        color,
+        prompt: null,
+        generations: [],
+        favorite_asset_url: null,
       })
-      .select()
+      .select('*')
       .single();
 
     if (error) {
@@ -34,38 +36,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      project
-    });
-
+    return NextResponse.json({ success: true, project: data });
   } catch (error) {
     console.error('Project creation error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId') || '00000000-0000-0000-0000-000000000000';
+    const userId = searchParams.get('userId');
 
-    const { data: projects, error } = await supabase
-      .from('projects')
-      .select(`
-        *,
-        generations (
-          id,
-          status,
-          images,
-          created_at
-        )
-      `)
-      .eq('user_id', userId)
+    let query = supabaseAdmin
+      .from('mamette_projects')
+      .select('*')
       .order('created_at', { ascending: false });
+
+    if (userId) {
+      query = query.eq('user_id', userId);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('Database error:', error);
@@ -75,16 +67,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      projects: projects || []
-    });
-
+    return NextResponse.json({ success: true, projects: data || [] });
   } catch (error) {
     console.error('Projects fetch error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 } 
