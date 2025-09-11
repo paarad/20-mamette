@@ -40,9 +40,9 @@ export async function POST(request: NextRequest) {
     const prompt = buildPrompt({ title: inferred.title, genre: 'poetry', vibe: inferred.vibe, lang, sourceText: text });
     const abstractFallbackPrompt = `${prompt}, abstract minimal composition, non-literal motifs, organic shapes and textures, landscape or scenery without words, silhouettes only, avoid any shapes resembling letters or numbers, no glyphs, no scripts (Latin, Cyrillic, Arabic, Chinese, Japanese, Korean), no calligraphy, no runes, no symbols, no text-like marks`;
 
-    const desired = 4;
-    const maxAttempts = 40;
-    const abstractAfter = 12;
+    const desired = 2;
+    const maxAttempts = 24;
+    const abstractAfter = 8;
     const cleanDataUrls: string[] = [];
     let attempts = 0;
 
