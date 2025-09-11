@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
     const maxAttempts = provider === 'replicate' ? 16 : 24;
     const abstractAfter = provider === 'replicate' ? 6 : 8;
     const cleanDataUrls: string[] = [];
+    const allDataUrls: string[] = [];
     let attempts = 0;
 
     while (cleanDataUrls.length < desired && attempts < maxAttempts) {
@@ -66,6 +67,7 @@ export async function POST(request: NextRequest) {
           if (!url) continue;
           const dataUrl = await fetchImageAsDataUrl(url);
           const hasText = await imageHasText(dataUrl);
+          allDataUrls.push(url);
           if (!hasText) cleanDataUrls.push(url);
         } else {
           const gen = await openai.images.generate({
@@ -81,16 +83,19 @@ export async function POST(request: NextRequest) {
           if (!b64) continue;
           const dataUrl = `data:image/png;base64,${b64}`;
           const hasText = await imageHasText(dataUrl);
+          allDataUrls.push(dataUrl);
           if (!hasText) cleanDataUrls.push(dataUrl);
         }
       } catch (_e) {}
     }
 
-    if (cleanDataUrls.length === 0) {
-      return NextResponse.json({ error: 'No text-free images generated' }, { status: 500 });
+    const imagesToSave = cleanDataUrls.length > 0 ? cleanDataUrls : allDataUrls.slice(0, desired);
+
+    if (imagesToSave.length === 0) {
+      return NextResponse.json({ error: 'No images generated' }, { status: 500 });
     }
 
-    const newEntries = cleanDataUrls.map((url: string) => ({
+    const newEntries = imagesToSave.map((url: string) => ({
       url,
       provider: provider === 'replicate' ? 'replicate' : 'dalle',
       status: 'completed',
@@ -102,7 +107,7 @@ export async function POST(request: NextRequest) {
       .update({ generations: newEntries, prompt })
       .eq('id', project.id);
 
-    return NextResponse.json({ success: true, projectId: project.id, images: cleanDataUrls });
+    return NextResponse.json({ success: true, projectId: project.id, images: imagesToSave, filtered: cleanDataUrls.length > 0 });
   } catch (_e) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
