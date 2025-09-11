@@ -20,18 +20,16 @@ export async function POST(request: NextRequest) {
     const lang = detectLanguage(`${title}\n${author || ''}\n${vibe || ''}`);
     const dynamicPrompt = buildPrompt({ title, genre, vibe, color, lang, sourceText: vibe });
 
-    const { data: project, error: fetchErr } = await supabaseAdmin
+    const { data: project } = await supabaseAdmin
       .from('mamette_projects')
       .select('generations')
       .eq('id', projectId)
       .single();
 
-    if (fetchErr || !project) {
-      console.error('Failed to fetch project:', fetchErr);
+    if (!project) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
 
-    // Generate up to 4 clean images (no text), retrying as needed with a cap
     const desired = 4;
     const maxAttempts = 20;
     const cleanDataUrls: string[] = [];
@@ -55,9 +53,7 @@ export async function POST(request: NextRequest) {
         const dataUrl = `data:image/png;base64,${b64}`;
         const hasText = await imageHasText(dataUrl);
         if (!hasText) cleanDataUrls.push(dataUrl);
-      } catch (e) {
-        // ignore and continue attempts
-      }
+      } catch (_e) {}
     }
 
     if (cleanDataUrls.length === 0) {
@@ -81,13 +77,11 @@ export async function POST(request: NextRequest) {
       .eq('id', projectId);
 
     if (updateErr) {
-      console.error('Failed to update project generations:', updateErr);
       return NextResponse.json({ error: 'Update failed' }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, projectId, images: cleanDataUrls });
-  } catch (error) {
-    console.error('Generation error:', error);
+  } catch (_error) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -133,22 +127,15 @@ function buildPrompt({
   if (color && colorMods[color as keyof typeof colorMods]) prompt += `, ${colorMods[color as keyof typeof colorMods]}`;
   if (vibe) prompt += `, incorporating themes of ${vibe}`;
 
-  // Enforce language and no lettering
   prompt += `, ${languageStyle(lang)}`;
 
-  // Use ONLY provided text as reference if available
   if (sourceText && sourceText.trim().length > 0) {
     const text = truncateClean(sourceText, 900);
     prompt += `, use ONLY the following text as thematic reference, do not invent motifs beyond it, do not display text: """${text}"""`;
   }
 
-  // Hard constraints to avoid mockups/objects/typography
   prompt += `, flat 2D artwork, no book mockups, no physical book, no 3D, no bevel, no emboss, no drop shadows, no reflections, no perspective product shots, no hands, no devices, no borders, no frames, no logos, no UI, no text, no typography, no letters, no characters, no signage, no captions`;
-
-  // Keep composition simple and image-only
   prompt += `, simple poster-style composition, single-image output`;
-
-  // Final aspect ratio
   prompt += `, aspect ratio 2:3`;
   return prompt;
 }

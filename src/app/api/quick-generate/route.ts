@@ -33,7 +33,6 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (insertErr || !project) {
-      console.error('Failed to create project:', insertErr);
       return NextResponse.json({ error: 'Failed to create project' }, { status: 500 });
     }
 
@@ -63,9 +62,7 @@ export async function POST(request: NextRequest) {
         const dataUrl = `data:image/png;base64,${b64}`;
         const hasText = await imageHasText(dataUrl);
         if (!hasText) cleanDataUrls.push(dataUrl);
-      } catch (e) {
-        // continue
-      }
+      } catch (_e) {}
     }
 
     if (cleanDataUrls.length === 0) {
@@ -79,18 +76,13 @@ export async function POST(request: NextRequest) {
       created_at: new Date().toISOString(),
     }));
 
-    const { error: updateErr } = await supabaseAdmin
+    await supabaseAdmin
       .from('mamette_projects')
       .update({ generations: newEntries, prompt })
       .eq('id', project.id);
 
-    if (updateErr) {
-      console.error('Failed to update project generations:', updateErr);
-    }
-
     return NextResponse.json({ success: true, projectId: project.id, images: cleanDataUrls });
-  } catch (e) {
-    console.error('quick-generate error:', e);
+  } catch (_e) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
