@@ -16,11 +16,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Detect language from title+vibe+author
     const lang = detectLanguage(`${title}\n${author || ''}\n${vibe || ''}`);
-    const dynamicPrompt = buildPrompt(title, genre, vibe, color, lang);
+    const dynamicPrompt = buildPrompt({ title, genre, vibe, color, lang, sourceText: vibe });
 
-    // Fetch existing generations
     const { data: project, error: fetchErr } = await supabaseAdmin
       .from('mamette_projects')
       .select('generations')
@@ -32,7 +30,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
 
-    // Generate 4 images
     const imagePromises = Array.from({ length: 4 }, () =>
       openai.images.generate({
         model: 'dall-e-3',
@@ -75,27 +72,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Update failed' }, { status: 500 });
     }
 
-    return NextResponse.json({
-      success: true,
-      projectId,
-      images: urls,
-    });
+    return NextResponse.json({ success: true, projectId, images: urls });
   } catch (error) {
     console.error('Generation error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-function buildPrompt(title: string, genre: string, vibe?: string, color?: string, lang: 'fr' | 'en' = 'en'): string {
+function buildPrompt({
+  title,
+  genre,
+  vibe,
+  color,
+  lang = 'en',
+  sourceText,
+}: {
+  title: string;
+  genre: string;
+  vibe?: string;
+  color?: string;
+  lang?: 'fr' | 'en';
+  sourceText?: string;
+}): string {
   const genreStyles = {
     fiction: 'literary fiction, clean modern design, thoughtful composition',
     mystery: 'suspenseful thriller, dark atmospheric lighting, noir elements',
     romance: 'romantic elegance, soft lighting, emotional warmth',
     fantasy: 'magical elements, rich colors, enchanting atmosphere',
     'sci-fi': 'futuristic design, technological elements, cosmic themes',
-    'non-fiction': 'professional clean design, bold typography space, authoritative feel',
+    'non-fiction': 'professional clean design, authoritative feel',
     memoir: 'personal intimate design, emotional depth, authentic feel',
-    poetry: 'artistic elegant design, creative typography space, lyrical atmosphere',
+    poetry: 'artistic elegant design, lyrical atmosphere',
   } as const;
 
   const colorMods = {
@@ -109,13 +116,31 @@ function buildPrompt(title: string, genre: string, vibe?: string, color?: string
     monochrome: 'monochromatic design, single color focus',
   } as const;
 
-  let prompt = `A ${genre} book cover concept for "${title}", ${genreStyles[genre as keyof typeof genreStyles] || 'professional design'}`;
+  let prompt = `A ${genre} cover artwork (image only) for "${title}", ${genreStyles[genre as keyof typeof genreStyles] || 'refined design'}`;
   if (color && colorMods[color as keyof typeof colorMods]) prompt += `, ${colorMods[color as keyof typeof colorMods]}`;
   if (vibe) prompt += `, incorporating themes of ${vibe}`;
-  // Language style and strict no-text directive
+
+  // Enforce language and no lettering
   prompt += `, ${languageStyle(lang)}`;
-  // Enforce flat 2D artwork (no mockups, no 3D, no shadows)
-  prompt += `, flat 2D artwork, no book mockups, no 3D render, no drop shadows, no perspective book objects, no staged product shots`;
-  prompt += `, cinematic composition, professional book cover design, clean space for typography, no text, no watermark, no frame, aspect ratio 2:3`;
+
+  // Use ONLY provided text as reference if available
+  if (sourceText && sourceText.trim().length > 0) {
+    const text = truncateClean(sourceText, 900);
+    prompt += `, use ONLY the following text as thematic reference, do not invent motifs beyond it, do not display text: """${text}"""`;
+  }
+
+  // Hard constraints to avoid mockups/objects/typography
+  prompt += `, flat 2D artwork, no book mockups, no physical book, no 3D, no bevel, no emboss, no drop shadows, no reflections, no perspective product shots, no hands, no devices, no borders, no frames, no logos, no UI, no text`;
+
+  // Keep composition simple and image-only
+  prompt += `, simple poster-style composition, single-image output`;
+
+  // Final aspect ratio
+  prompt += `, aspect ratio 2:3`;
   return prompt;
+}
+
+function truncateClean(s: string, n: number) {
+  const cleaned = s.replace(/\s+/g, ' ').trim();
+  return cleaned.length > n ? cleaned.slice(0, n - 1) + '…' : cleaned;
 } 

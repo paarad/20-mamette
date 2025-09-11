@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     }
 
     const lang = detectLanguage(text);
-    const prompt = buildPrompt(inferred.title, 'poetry', inferred.vibe, undefined, lang);
+    const prompt = buildPrompt({ title: inferred.title, genre: 'poetry', vibe: inferred.vibe, lang, sourceText: text });
 
     // Generate images (4)
     const imagePromises = Array.from({ length: 4 }, () =>
@@ -100,33 +100,39 @@ function inferFromText(text: string) {
   return { title, author, vibe };
 }
 
-function buildPrompt(title: string, genre: string, vibe?: string, color?: string, lang: 'fr' | 'en' = 'en'): string {
+function buildPrompt({
+  title,
+  genre,
+  vibe,
+  color,
+  lang = 'en',
+  sourceText,
+}: {
+  title: string;
+  genre: string;
+  vibe?: string;
+  color?: string;
+  lang?: 'fr' | 'en';
+  sourceText?: string;
+}): string {
   const genreStyles = {
-    poetry: 'artistic elegant design, creative symbolism, lyrical atmosphere, minimalistic composition',
+    poetry: 'artistic elegant design, lyrical atmosphere',
   } as const;
 
-  const colorMods = {
-    warm: 'warm color palette, golden tones, inviting atmosphere',
-    cool: 'cool color palette, blues and teals, calming mood',
-    dark: 'dark moody palette, deep shadows, dramatic contrast',
-    bright: 'bright vibrant colors, high energy, optimistic feel',
-    earthy: 'earth tones, natural colors, organic feel',
-    vibrant: 'saturated vibrant colors, bold and striking',
-    muted: 'muted subtle colors, sophisticated restraint',
-    monochrome: 'monochromatic design, single color focus',
-  } as const;
+  let prompt = `A ${genre} cover artwork (image only) for "${title}", ${genreStyles['poetry']}`;
+  if (vibe) prompt += `, incorporating themes of ${vibe}`;
 
-  let prompt = `A ${genre} book cover concept for "${title}", ${genreStyles['poetry']}`;
-  if (color && colorMods[color as keyof typeof colorMods]) prompt += `, ${colorMods[color as keyof typeof colorMods]}`;
-  if (vibe) prompt += `, inspired by the following text: ${truncate(vibe, 300)}`;
-  // Language style and strict no lettering
+  // Enforce language and no lettering
   prompt += `, ${languageStyle(lang)}`;
-  // Enforce flat artwork
-  prompt += `, flat 2D artwork, no book mockups, no 3D render, no drop shadows, no perspective book objects, no staged product shots`;
-  prompt += `, cinematic composition, professional book cover design, clean space for typography, no text, no watermark, no frame, aspect ratio 2:3`;
-  return prompt;
-}
 
-function truncate(s: string, n: number) {
-  return s.length > n ? s.slice(0, n - 1) + '…' : s;
+  // Use ONLY provided text
+  if (sourceText && sourceText.trim().length > 0) {
+    const cleaned = sourceText.replace(/\s+/g, ' ').trim();
+    const text = cleaned.length > 900 ? cleaned.slice(0, 899) + '…' : cleaned;
+    prompt += `, use ONLY the following text as thematic reference, do not invent motifs beyond it, do not display text: """${text}"""`;
+  }
+
+  prompt += `, flat 2D artwork, no book mockups, no physical book, no 3D, no bevel, no emboss, no drop shadows, no reflections, no perspective product shots, no hands, no devices, no borders, no frames, no logos, no UI, no text`;
+  prompt += `, simple poster-style composition, single-image output, aspect ratio 2:3`;
+  return prompt;
 } 
