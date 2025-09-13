@@ -2,6 +2,9 @@ import Link from 'next/link';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { DEFAULT_USER_ID } from '@/lib/config';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 interface RecentItem {
   id: string;
   title: string | null;
@@ -81,12 +84,13 @@ export default async function HomePage() {
                 {(recent as RecentItem[]).map((p: RecentItem) => {
                   const firstUrl = Array.isArray(p.generations) && p.generations.length > 0 ? p.generations[0]?.url : null;
                   const url = p.favorite_asset_url || firstUrl;
+                  const proxied = url ? `/api/image-proxy?url=${encodeURIComponent(url)}` : null;
                   return (
                     <Link key={p.id} href={`/project/${p.id}`} className="bg-white rounded-xl shadow-sm overflow-hidden border border-neutral-200 hover:shadow-md transition-shadow">
                       <div className="aspect-[2/3] bg-neutral-200">
-                        {url ? (
+                        {proxied ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={url} alt={p.title || 'Cover'} className="w-full h-full object-cover" />
+                          <img src={proxied} alt={p.title || 'Cover'} className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-neutral-500 text-sm">No image</div>
                         )}
