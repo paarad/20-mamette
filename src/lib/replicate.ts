@@ -5,11 +5,13 @@ export async function replicateTextToImage(params: {
   height?: number;
   numInferenceSteps?: number;
   guidanceScale?: number;
-  extraInputs?: Record<string, any>;
+  extraInputs?: Record<string, unknown>;
+  modelSlugOverride?: string; // owner/model
+  versionOverride?: string;   // version id
 }): Promise<string[]> {
   const token = process.env.REPLICATE_API_TOKEN;
-  let version = process.env.REPLICATE_VERSION;
-  const model = process.env.REPLICATE_MODEL; // e.g. owner/model slug
+  let version = params.versionOverride || process.env.REPLICATE_VERSION;
+  const model = params.modelSlugOverride || process.env.REPLICATE_MODEL; // e.g. owner/model slug
   if (!token) {
     throw new Error('Missing REPLICATE_API_TOKEN');
   }
@@ -27,13 +29,15 @@ export async function replicateTextToImage(params: {
       throw new Error(`Replicate model lookup failed: ${txt}`);
     }
     const modelJson = await modelRes.json();
-    version = modelJson?.latest_version?.id;
+    type ReplicateModelMeta = { latest_version?: { id?: string } };
+    const latestId = (modelJson as ReplicateModelMeta)?.latest_version?.id;
+    version = latestId;
     if (!version) {
       throw new Error('Replicate: could not determine latest version for the provided model');
     }
   }
 
-  const input = {
+  const input: Record<string, unknown> = {
     prompt: params.prompt,
     negative_prompt: params.negativePrompt || 'text, letters, words, characters, typography, captions, logos, watermarks, glyphs, scripts, symbols, UI',
     width: params.width ?? 1024,
@@ -42,7 +46,7 @@ export async function replicateTextToImage(params: {
     num_inference_steps: params.numInferenceSteps ?? 28,
     guidance_scale: params.guidanceScale ?? 3.5,
     ...(params.extraInputs || {}),
-  } as Record<string, any>;
+  };
 
   const createRes = await fetch('https://api.replicate.com/v1/predictions', {
     method: 'POST',
@@ -59,7 +63,7 @@ export async function replicateTextToImage(params: {
   }
 
   const created = await createRes.json();
-  const predictionUrl: string = created?.urls?.get;
+  const predictionUrl: string = (created as { urls?: { get?: string } })?.urls?.get || '';
   if (!predictionUrl) throw new Error('Replicate create: missing prediction URL');
 
   const startedAt = Date.now();
@@ -75,14 +79,14 @@ export async function replicateTextToImage(params: {
       throw new Error(`Replicate poll failed: ${txt}`);
     }
     const body = await pollRes.json();
-    const status: string = body?.status;
+    const status: string = (body as { status?: string })?.status || '';
     if (status === 'succeeded') {
-      const output = body?.output;
+      const output = (body as { output?: unknown })?.output;
       const urls = extractImageUrlsFromOutput(output);
       return urls;
     }
     if (status === 'failed' || status === 'canceled') {
-      const err = body?.error || status;
+      const err = (body as { error?: string })?.error || status;
       throw new Error(`Replicate status: ${err}`);
     }
     await new Promise((r) => setTimeout(r, pollMs));
@@ -91,11 +95,19 @@ export async function replicateTextToImage(params: {
   throw new Error('Replicate generation timed out');
 }
 
-function extractImageUrlsFromOutput(output: any): string[] {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function isString(value: unknown): value is string {
+  return typeof value === 'string';
+}
+
+function extractImageUrlsFromOutput(output: unknown): string[] {
   const results: string[] = [];
-  const visit = (node: any) => {
+  const visit = (node: unknown) => {
     if (!node) return;
-    if (typeof node === 'string') {
+    if (isString(node)) {
       const s = node.trim();
       // If it's a data URL, accept as-is
       if (s.startsWith('data:image/')) {
@@ -115,12 +127,10 @@ function extractImageUrlsFromOutput(output: any): string[] {
       }
     } else if (Array.isArray(node)) {
       node.forEach(visit);
-    } else if (typeof node === 'object') {
-      // Common keys: { url }, { image }, etc.
-      if (typeof node.url === 'string') visit(node.url);
-      if (typeof node.image === 'string') visit(node.image);
-      if (typeof node.data === 'string') visit(node.data);
-      // Scan all values
+    } else if (isRecord(node)) {
+      if (isString(node.url)) visit(node.url);
+      if (isString((node as Record<string, unknown>).image as string)) visit((node as Record<string, unknown>).image as string);
+      if (isString((node as Record<string, unknown>).data as string)) visit((node as Record<string, unknown>).data as string);
       Object.values(node).forEach(visit);
     }
   };

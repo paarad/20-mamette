@@ -30,15 +30,13 @@ export async function POST(request: NextRequest) {
     }
 
     const desired = 4;
-    const maxAttempts = 20;
+    const maxAttempts = 24;
     const abstractAfter = 8;
-    const cleanUrls: string[] = [];
-    const allUrls: string[] = [];
+    const cleanDataUrls: string[] = [];
+    const allDataUrls: string[] = [];
     let attempts = 0;
 
-    const ocrEnabled = process.env.MAMETTE_OCR_ENABLED === 'true';
-
-    while (cleanUrls.length < desired && attempts < maxAttempts) {
+    while (cleanDataUrls.length < desired && attempts < maxAttempts) {
       attempts += 1;
       try {
         const promptToUse = attempts > abstractAfter ? abstractFallbackPrompt : dynamicPrompt;
@@ -52,20 +50,16 @@ export async function POST(request: NextRequest) {
         });
         const url = outputs?.[0];
         if (!url) continue;
-        allUrls.push(url);
-        if (!ocrEnabled) {
-          cleanUrls.push(url);
-          continue;
-        }
         const dataUrl = await fetchImageAsDataUrl(url);
         const hasText = await imageHasText(dataUrl);
-        if (!hasText) cleanUrls.push(url);
+        allDataUrls.push(url);
+        if (!hasText) cleanDataUrls.push(url);
       } catch (_e) {
         // continue attempts
       }
     }
 
-    const imagesToSave = (ocrEnabled ? (cleanUrls.length > 0 ? cleanUrls : allUrls.slice(0, desired)) : allUrls.slice(0, desired));
+    const imagesToSave = cleanDataUrls.length > 0 ? cleanDataUrls : allDataUrls.slice(0, desired);
 
     if (imagesToSave.length === 0) {
       return NextResponse.json({ error: 'No images generated' }, { status: 500 });
@@ -91,7 +85,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Update failed' }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, projectId, images: imagesToSave, filtered: ocrEnabled && cleanUrls.length > 0 });
+    return NextResponse.json({ success: true, projectId, images: imagesToSave, filtered: cleanDataUrls.length > 0 });
   } catch (_error) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

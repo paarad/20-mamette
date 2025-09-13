@@ -62,8 +62,8 @@ Beautiful, on-brand book covers in seconds. Just give Mamette your title, vibe, 
    - This will create all necessary tables with Row Level Security
 
 5. **Run the development server**
-   ```bash
-   npm run dev
+```bash
+npm run dev
    ```
 
 6. **Open your browser**

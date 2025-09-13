@@ -1,6 +1,7 @@
 "use client";
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 export default function NewProjectPage() {
   const router = useRouter();
@@ -38,8 +39,9 @@ export default function NewProjectPage() {
       }).catch(() => {});
 
       router.push(`/project/${projectId}`);
-    } catch (err: any) {
-      setError(err.message || 'Something went wrong');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Something went wrong';
+      setError(message);
     } finally {
       setSubmitting(false);
     }
@@ -57,8 +59,9 @@ export default function NewProjectPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Failed to generate');
       router.push(`/project/${json.projectId}`);
-    } catch (e: any) {
-      setError(e.message || 'Something went wrong');
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Something went wrong';
+      setError(message);
     } finally {
       setQuickLoading(false);
     }
@@ -68,9 +71,12 @@ export default function NewProjectPage() {
     <div className="min-h-screen bg-gradient-to-br from-neutral-50 to-neutral-100">
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto">
+          <div className="mb-2 text-left">
+            <Link href="/" className="text-sm text-neutral-600 hover:underline">← Home</Link>
+          </div>
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-neutral-800 mb-2">Tell Mamette About Your Book</h1>
-            <p className="text-neutral-600">Share your vision and let's create something beautiful together</p>
+            <p className="text-neutral-600">Share your vision and let&apos;s create something beautiful together</p>
           </div>
 
           {/* Quick generate from pasted text */}

@@ -39,15 +39,13 @@ export async function POST(request: NextRequest) {
     const abstractFallbackPrompt = `${prompt}, abstract minimal composition, non-literal motifs, organic shapes and textures, landscape or scenery without words, silhouettes only, avoid any shapes resembling letters or numbers, no glyphs, no scripts (Latin, Cyrillic, Arabic, Chinese, Japanese, Korean), no calligraphy, no runes, no symbols, no text-like marks`;
 
     const desired = 2;
-    const maxAttempts = 12;
+    const maxAttempts = 16;
     const abstractAfter = 6;
-    const cleanUrls: string[] = [];
-    const allUrls: string[] = [];
+    const cleanDataUrls: string[] = [];
+    const allDataUrls: string[] = [];
     let attempts = 0;
 
-    const ocrEnabled = process.env.MAMETTE_OCR_ENABLED === 'true';
-
-    while (cleanUrls.length < desired && attempts < maxAttempts) {
+    while (cleanDataUrls.length < desired && attempts < maxAttempts) {
       attempts += 1;
       try {
         const promptToUse = attempts > abstractAfter ? abstractFallbackPrompt : prompt;
@@ -61,20 +59,16 @@ export async function POST(request: NextRequest) {
         });
         const url = outputs?.[0];
         if (!url) continue;
-        allUrls.push(url);
-        if (!ocrEnabled) {
-          cleanUrls.push(url);
-          continue;
-        }
         const dataUrl = await fetchImageAsDataUrl(url);
         const hasText = await imageHasText(dataUrl);
-        if (!hasText) cleanUrls.push(url);
+        allDataUrls.push(url);
+        if (!hasText) cleanDataUrls.push(url);
       } catch (e) {
         // continue attempts
       }
     }
 
-    const imagesToSave = (ocrEnabled ? (cleanUrls.length > 0 ? cleanUrls : allUrls.slice(0, desired)) : allUrls.slice(0, desired));
+    const imagesToSave = cleanDataUrls.length > 0 ? cleanDataUrls : allDataUrls.slice(0, desired);
 
     if (imagesToSave.length === 0) {
       return NextResponse.json({ error: 'No images generated' }, { status: 500 });
@@ -92,7 +86,7 @@ export async function POST(request: NextRequest) {
       .update({ generations: newEntries, prompt })
       .eq('id', project.id);
 
-    return NextResponse.json({ success: true, projectId: project.id, images: imagesToSave, filtered: ocrEnabled && cleanUrls.length > 0 });
+    return NextResponse.json({ success: true, projectId: project.id, images: imagesToSave, filtered: cleanDataUrls.length > 0 });
   } catch (_e) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

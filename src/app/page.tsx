@@ -1,6 +1,22 @@
 import Link from 'next/link';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { DEFAULT_USER_ID } from '@/lib/config';
 
-export default function HomePage() {
+interface RecentItem {
+  id: string;
+  title: string | null;
+  generations: { url?: string | null }[] | null;
+  favorite_asset_url: string | null;
+}
+
+export default async function HomePage() {
+  const { data: recent } = await supabaseAdmin
+    .from('mamette_projects')
+    .select('id,title,generations,favorite_asset_url')
+    .eq('user_id', DEFAULT_USER_ID)
+    .order('created_at', { ascending: false })
+    .limit(6);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-neutral-50 via-neutral-100 to-neutral-200">
       {/* Navigation */}
@@ -35,7 +51,7 @@ export default function HomePage() {
             </h1>
             <p className="text-xl text-neutral-600 max-w-2xl mx-auto leading-relaxed">
               Mamette helps you create beautiful, on-brand book covers in seconds. 
-              Just give her your title, vibe, and vision—she'll do the rest.
+              Just give her your title, vibe, and vision—she&apos;ll do the rest.
             </p>
           </div>
 
@@ -53,6 +69,37 @@ export default function HomePage() {
               Free to try • No credit card required
             </p>
           </div>
+
+          {/* Last search */}
+          {Array.isArray(recent) && recent.length > 0 && (
+            <div className="mb-16">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-neutral-800">Last search</h2>
+                <Link href="/new" className="text-sm text-neutral-600 hover:text-neutral-800">New project</Link>
+              </div>
+              <div className="grid md:grid-cols-3 gap-6 max-w-3xl mx-auto">
+                {(recent as RecentItem[]).map((p: RecentItem) => {
+                  const firstUrl = Array.isArray(p.generations) && p.generations.length > 0 ? p.generations[0]?.url : null;
+                  const url = p.favorite_asset_url || firstUrl;
+                  return (
+                    <Link key={p.id} href={`/project/${p.id}`} className="bg-white rounded-xl shadow-sm overflow-hidden border border-neutral-200 hover:shadow-md transition-shadow">
+                      <div className="aspect-[2/3] bg-neutral-200">
+                        {url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={url} alt={p.title || 'Cover'} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-neutral-500 text-sm">No image</div>
+                        )}
+                      </div>
+                      <div className="p-3">
+                        <div className="text-sm font-medium text-neutral-800 truncate">{p.title || 'Untitled'}</div>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Sample Covers Preview */}
           <div className="mb-16">
@@ -100,7 +147,7 @@ export default function HomePage() {
             <div className="text-center">
               <div className="w-16 h-16 bg-neutral-200 rounded-full mx-auto mb-4 flex items-center justify-center">
                 <svg className="w-8 h-8 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zM21 5a2 2 0 00-2-2h-4a2 2 0 00-2 2v12a4 4 0 004 4h4a2 2 0 002-2V5z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 004 4h4a2 2 0 002-2V5z" />
                 </svg>
               </div>
               <h3 className="text-lg font-semibold text-neutral-800 mb-2">Print Ready</h3>
@@ -113,7 +160,7 @@ export default function HomePage() {
                 </svg>
               </div>
               <h3 className="text-lg font-semibold text-neutral-800 mb-2">Made with Love</h3>
-              <p className="text-neutral-600">Elegant designs that capture your story's essence</p>
+              <p className="text-neutral-600">Elegant designs that capture your story&apos;s essence</p>
             </div>
           </div>
 
