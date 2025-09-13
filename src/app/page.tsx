@@ -12,6 +12,10 @@ interface RecentItem {
   favorite_asset_url: string | null;
 }
 
+interface RecentWithUrl extends RecentItem {
+  url: string | null;
+}
+
 function isLikelyPublicUrl(u: string | null | undefined): boolean {
   if (!u) return false;
   if (u.includes('/storage/v1/object/public/')) return true;
@@ -89,14 +93,14 @@ export default async function HomePage() {
               </div>
               <div className="grid md:grid-cols-3 gap-6 max-w-3xl mx-auto">
                 {(recent as RecentItem[])
-                  .map((p: RecentItem) => {
-                    const firstUrl = Array.isArray(p.generations) && p.generations.length > 0 ? p.generations[0]?.url : null;
+                  .map<RecentWithUrl>((p) => {
+                    const firstUrl = Array.isArray(p.generations) && p.generations.length > 0 ? p.generations[0]?.url || null : null;
                     const url = p.favorite_asset_url || firstUrl;
-                    return { ...p, url } as RecentItem & { url: string | null };
+                    return { ...p, url };
                   })
-                  .filter((p) => isLikelyPublicUrl((p as any).url))
-                  .map((p: any) => {
-                    const proxied = `/api/image-proxy?url=${encodeURIComponent(p.url)}`;
+                  .filter((p) => isLikelyPublicUrl(p.url))
+                  .map((p) => {
+                    const proxied = `/api/image-proxy?url=${encodeURIComponent(p.url || '')}`;
                     return (
                       <Link key={p.id} href={`/project/${p.id}`} className="bg-white rounded-xl shadow-sm overflow-hidden border border-neutral-200 hover:shadow-md transition-shadow">
                         <div className="aspect-[2/3] bg-neutral-200">
@@ -113,7 +117,6 @@ export default async function HomePage() {
             </div>
           )}
 
-          
           {/* Features */}
           <div className="grid md:grid-cols-3 gap-8 mb-16">
             <div className="text-center">
@@ -141,7 +144,7 @@ export default async function HomePage() {
                 </svg>
               </div>
               <h3 className="text-lg font-semibold text-neutral-800 mb-2">Made with Love</h3>
-              <p className="text-neutral-600">Elegant designs that capture your story's essence</p>
+              <p className="text-neutral-600">Elegant designs that capture your story&apos;s essence</p>
             </div>
           </div>
 
