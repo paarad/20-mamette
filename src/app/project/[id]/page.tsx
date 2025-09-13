@@ -106,6 +106,16 @@ export default function ProjectPage() {
     window.open(apiUrl, '_blank');
   }
 
+  async function handleDelete() {
+    if (!project) return;
+    const ok = window.confirm('Delete this project? This cannot be undone.');
+    if (!ok) return;
+    const res = await fetch(`/api/projects/${project.id}`, { method: 'DELETE' });
+    if (res.ok) {
+      window.location.href = '/';
+    }
+  }
+
   if (loading) return <div className="container mx-auto px-4 py-8">Loading…</div>;
   if (error) return <div className="container mx-auto px-4 py-8 text-red-600">{error}</div>;
   if (!project) return null;
@@ -130,6 +140,9 @@ export default function ProjectPage() {
               </button>
               <button onClick={handleExport} className="px-6 py-2 bg-neutral-800 text-white rounded-lg hover:bg-neutral-700 transition-colors">
                 Export Selected
+              </button>
+              <button onClick={handleDelete} className="px-6 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 transition-colors">
+                Delete
               </button>
             </div>
           </div>
