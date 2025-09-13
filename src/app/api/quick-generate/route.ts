@@ -4,6 +4,7 @@ import { DEFAULT_USER_ID } from '@/lib/config';
 import { detectLanguage, languageStyle } from '@/lib/lang';
 import { imageHasText } from '@/lib/ocr';
 import { replicateTextToImage, fetchImageAsDataUrl } from '@/lib/replicate';
+import { uploadRemoteImageToBucket } from '@/lib/storage';
 
 export async function POST(request: NextRequest) {
   try {
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest) {
         const hasText = await imageHasText(dataUrl);
         allDataUrls.push(url);
         if (!hasText) cleanDataUrls.push(url);
-      } catch (e) {
+      } catch (_e) {
         // continue attempts
       }
     }
@@ -74,7 +75,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No images generated' }, { status: 500 });
     }
 
-    const newEntries = imagesToSave.map((url: string) => ({
+    // Upload to storage and replace URLs with public URLs
+    const uploadedUrls: string[] = [];
+    for (const u of imagesToSave) {
+      try {
+        const fileName = `${project.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.png`;
+        const publicUrl = await uploadRemoteImageToBucket({ urlOrData: u, fileName });
+        uploadedUrls.push(publicUrl);
+      } catch {
+        uploadedUrls.push(u);
+      }
+    }
+
+    const newEntries = uploadedUrls.map((url: string) => ({
       url,
       provider: 'replicate',
       status: 'completed',
@@ -86,7 +99,7 @@ export async function POST(request: NextRequest) {
       .update({ generations: newEntries, prompt })
       .eq('id', project.id);
 
-    return NextResponse.json({ success: true, projectId: project.id, images: imagesToSave, filtered: cleanDataUrls.length > 0 });
+    return NextResponse.json({ success: true, projectId: project.id, images: uploadedUrls, filtered: cleanDataUrls.length > 0 });
   } catch (_e) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
@@ -117,12 +130,7 @@ function buildPrompt({
   lang = 'en',
   sourceText,
 }: {
-  title: string;
-  genre: string;
-  vibe?: string;
-  color?: string;
-  lang?: 'fr' | 'en';
-  sourceText?: string;
+  title: string; genre: string; vibe?: string; color?: string; lang?: 'fr' | 'en'; sourceText?: string;
 }): string {
   const genreStyles = {
     poetry: 'artistic elegant design, lyrical atmosphere',

@@ -12,6 +12,13 @@ interface RecentItem {
   favorite_asset_url: string | null;
 }
 
+function isLikelyPublicUrl(u: string | null | undefined): boolean {
+  if (!u) return false;
+  if (u.includes('/storage/v1/object/public/')) return true;
+  if (u.startsWith('/api/image-proxy')) return true;
+  return false;
+}
+
 export default async function HomePage() {
   const { data: recent } = await supabaseAdmin
     .from('mamette_projects')
@@ -81,62 +88,32 @@ export default async function HomePage() {
                 <Link href="/new" className="text-sm text-neutral-600 hover:text-neutral-800">New project</Link>
               </div>
               <div className="grid md:grid-cols-3 gap-6 max-w-3xl mx-auto">
-                {(recent as RecentItem[]).map((p: RecentItem) => {
-                  const firstUrl = Array.isArray(p.generations) && p.generations.length > 0 ? p.generations[0]?.url : null;
-                  const url = p.favorite_asset_url || firstUrl;
-                  const proxied = url ? `/api/image-proxy?url=${encodeURIComponent(url)}` : null;
-                  return (
-                    <Link key={p.id} href={`/project/${p.id}`} className="bg-white rounded-xl shadow-sm overflow-hidden border border-neutral-200 hover:shadow-md transition-shadow">
-                      <div className="aspect-[2/3] bg-neutral-200">
-                        {proxied ? (
-                          // eslint-disable-next-line @next/next/no-img-element
+                {(recent as RecentItem[])
+                  .map((p: RecentItem) => {
+                    const firstUrl = Array.isArray(p.generations) && p.generations.length > 0 ? p.generations[0]?.url : null;
+                    const url = p.favorite_asset_url || firstUrl;
+                    return { ...p, url } as RecentItem & { url: string | null };
+                  })
+                  .filter((p) => isLikelyPublicUrl((p as any).url))
+                  .map((p: any) => {
+                    const proxied = `/api/image-proxy?url=${encodeURIComponent(p.url)}`;
+                    return (
+                      <Link key={p.id} href={`/project/${p.id}`} className="bg-white rounded-xl shadow-sm overflow-hidden border border-neutral-200 hover:shadow-md transition-shadow">
+                        <div className="aspect-[2/3] bg-neutral-200">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={proxied} alt={p.title || 'Cover'} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-neutral-500 text-sm">No image</div>
-                        )}
-                      </div>
-                      <div className="p-3">
-                        <div className="text-sm font-medium text-neutral-800 truncate">{p.title || 'Untitled'}</div>
-                      </div>
-                    </Link>
-                  );
-                })}
+                        </div>
+                        <div className="p-3">
+                          <div className="text-sm font-medium text-neutral-800 truncate">{p.title || 'Untitled'}</div>
+                        </div>
+                      </Link>
+                    );
+                  })}
               </div>
             </div>
           )}
 
-          {/* Sample Covers Preview */}
-          <div className="mb-16">
-            <p className="text-neutral-600 mb-8 text-lg">
-              See what Mamette can create for you
-            </p>
-            <div className="grid md:grid-cols-3 gap-8 max-w-3xl mx-auto">
-              {[
-                { title: 'The Midnight Garden', genre: 'Romance', mood: 'Elegant Script' },
-                { title: 'Digital Fortress', genre: 'Thriller', mood: 'Bold Sans' },
-                { title: 'Letters to Yesterday', genre: 'Literary', mood: 'Serif Classic' }
-              ].map((book, i) => (
-                <div key={i} className="bg-white rounded-xl shadow-lg overflow-hidden transform hover:scale-105 transition-transform duration-200">
-                  <div className="aspect-[2/3] bg-gradient-to-br from-neutral-300 to-neutral-500 relative">
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="text-white text-center">
-                        <div className="w-12 h-12 bg-white bg-opacity-20 rounded-lg mx-auto mb-3"></div>
-                        <div className="text-sm font-medium opacity-80">Sample Cover</div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="p-4">
-                    <h3 className="font-semibold text-neutral-800 mb-1">{book.title}</h3>
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-neutral-600">{book.genre}</span>
-                      <span className="text-neutral-500">{book.mood}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
+          
           {/* Features */}
           <div className="grid md:grid-cols-3 gap-8 mb-16">
             <div className="text-center">
@@ -164,7 +141,7 @@ export default async function HomePage() {
                 </svg>
               </div>
               <h3 className="text-lg font-semibold text-neutral-800 mb-2">Made with Love</h3>
-              <p className="text-neutral-600">Elegant designs that capture your story&apos;s essence</p>
+              <p className="text-neutral-600">Elegant designs that capture your story's essence</p>
             </div>
           </div>
 

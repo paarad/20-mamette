@@ -12,6 +12,14 @@ interface LibraryItem {
   created_at: string;
 }
 
+function isLikelyPublicUrl(u: string | null | undefined): boolean {
+  if (!u) return false;
+  if (u.includes('/storage/v1/object/public/')) return true;
+  // allow our own proxy thumbnails
+  if (u.startsWith('/api/image-proxy')) return true;
+  return false;
+}
+
 export default async function LibraryPage() {
   const { data: projects } = await supabaseAdmin
     .from('mamette_projects')
@@ -20,7 +28,14 @@ export default async function LibraryPage() {
     .order('created_at', { ascending: false })
     .limit(48);
 
-  const list: LibraryItem[] = Array.isArray(projects) ? (projects as LibraryItem[]) : [];
+  let list: LibraryItem[] = Array.isArray(projects) ? (projects as LibraryItem[]) : [];
+
+  // Filter out items with no usable image
+  list = list.filter((p) => {
+    const firstUrl = Array.isArray(p.generations) && p.generations.length > 0 ? p.generations[0]?.url || null : null;
+    const url = p.favorite_asset_url || firstUrl;
+    return isLikelyPublicUrl(url);
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-neutral-50 to-neutral-100">
