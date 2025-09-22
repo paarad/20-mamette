@@ -100,7 +100,7 @@ export default async function HomePage() {
                     const proxied = `/api/image-proxy?url=${encodeURIComponent(p.url || '')}`;
                     return (
                       <Link key={p.id} href={`/project/${p.id}`} className="bg-white rounded-xl shadow-sm overflow-hidden border border-neutral-200 hover:shadow-md transition-shadow">
-                        <div className="aspect-[2/3] bg-neutral-200">
+                        <div className="aspect-square bg-neutral-200">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={proxied} alt={p.title || 'Cover'} className="w-full h-full object-cover" />
                         </div>

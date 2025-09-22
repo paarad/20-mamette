@@ -65,7 +65,7 @@ export default async function LibraryPage() {
               const title = p.title || 'Untitled';
               return (
                 <Link key={p.id} href={`/project/${p.id}`} className="bg-white rounded-xl overflow-hidden shadow-sm border border-neutral-200 hover:shadow-md transition-shadow group">
-                  <div className="aspect-[2/3] bg-neutral-200 relative overflow-hidden">
+                  <div className="aspect-square bg-neutral-200 relative overflow-hidden">
                     {url ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={url} alt={title} className="w-full h-full object-cover" />
