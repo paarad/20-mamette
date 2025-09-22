@@ -148,13 +148,14 @@ export default function ProjectPage() {
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
+        <div className="space-y-8">
+          {/* Square Images Grid - 2 columns */}
+          <div>
             {project.generations?.length ? (
-              <div className="grid md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-2 gap-8 max-w-6xl mx-auto">
                 {project.generations.map((g, i) => (
                   <div key={g.created_at + i} className="bg-white rounded-xl overflow-hidden shadow-sm border border-neutral-200 hover:shadow-md transition-shadow cursor-pointer">
-                    <div className="aspect-[2/3] bg-neutral-200 relative">
+                    <div className="aspect-square bg-neutral-200 relative">
                       {g.url ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={g.url} alt={`Generated Cover ${i + 1}`} className="w-full h-full object-cover" />
@@ -175,16 +176,17 @@ export default function ProjectPage() {
               </div>
             ) : (
               generating ? (
-                <div className="text-neutral-500">Generating…</div>
+                <div className="text-neutral-500 text-center">Generating…</div>
               ) : (
-                <div className="text-neutral-600">No generations yet. Click &quot;Generate More&quot; to create some.</div>
+                <div className="text-neutral-600 text-center">No generations yet. Click &quot;Generate More&quot; to create some.</div>
               )
             )}
           </div>
 
+          {/* Mockup Studio - Full width at bottom */}
           {true && (
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-6 sticky top-8">
+          <div className="max-w-6xl mx-auto">
+            <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-6">
               <h3 className="text-lg font-semibold text-neutral-800 mb-4">Mockup Studio</h3>
               {(() => {
                 const sourceUrl = project.favorite_asset_url || (project.generations?.[0]?.url || '');

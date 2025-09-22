@@ -37,9 +37,6 @@ export default async function HomePage() {
       <nav className="container mx-auto px-4 py-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-neutral-600 to-neutral-800 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">M</span>
-            </div>
             <span className="text-2xl font-bold text-neutral-800">Mamette</span>
           </div>
           <div className="flex items-center gap-6">
@@ -174,9 +171,6 @@ export default async function HomePage() {
       <footer className="container mx-auto px-4 py-8 mt-16 border-t border-neutral-200">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-6 h-6 bg-gradient-to-br from-neutral-600 to-neutral-800 rounded-md flex items-center justify-center">
-              <span className="text-white font-bold text-xs">M</span>
-            </div>
             <span className="text-neutral-600">© 2024 Mamette</span>
           </div>
           {/* Removed auxiliary links */}
