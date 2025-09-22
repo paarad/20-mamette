@@ -171,7 +171,7 @@ export default async function HomePage() {
       <footer className="container mx-auto px-4 py-8 mt-16 border-t border-neutral-200">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="text-neutral-600">© 2024 Mamette</span>
+            <span className="text-neutral-600">© 2025 Mamette</span>
           </div>
           {/* Removed auxiliary links */}
         </div>
